@@ -1,0 +1,51 @@
+name: Build Kamakiri Patched Kernel
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential fakeroot libncurses-dev bison flex libssl-dev libelf-dev zstd dpkg-dev curl patch wget
+
+      - name: Download Kernel 6.17 Source
+        run: |
+          wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.17.tar.xz
+          tar -xf linux-6.17.tar.xz
+          
+      - name: Patch and Configure Kernel
+        run: |
+          cd linux-6.17
+          
+          # Apply the devio.c kamakiri patch
+          curl -sSL https://gist.githubusercontent.com/R0rt1z2/6c29b120437655dc576d0db84d19e730/raw | patch -p1
+          
+          # Copy the GitHub runner's stable Ubuntu config as a baseline
+          cp /boot/config-$(uname -r) .config
+          make olddefconfig
+          
+          # Disable security certificates to prevent build errors
+          scripts/config --set-str SYSTEM_TRUSTED_KEYS ""
+          scripts/config --set-str SYSTEM_REVOCATION_KEYS ""
+          
+          # Disable heavy debug symbols to save disk space and compile time
+          scripts/config --disable DEBUG_INFO
+          scripts/config --disable DEBUG_INFO_BTF
+          
+      - name: Compile the Kernel
+        run: |
+          cd linux-6.17
+          # Build debian packages using all available runner cores
+          make -j$(nproc) bindeb-pkg LOCALVERSION=-kamakiri
+          
+      - name: Upload Kernel Packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: patched-kamakiri-kernel
+          path: "*.deb"
+          retention-days: 3
