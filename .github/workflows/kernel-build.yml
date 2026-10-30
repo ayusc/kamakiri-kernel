@@ -7,6 +7,19 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
 
       - name: Install Build Dependencies
         run: |
@@ -25,8 +38,8 @@ jobs:
           # Apply the devio.c kamakiri patch
           curl -sSL https://gist.githubusercontent.com/R0rt1z2/6c29b120437655dc576d0db84d19e730/raw | patch -p1
           
-          # Copy the GitHub runner's stable Ubuntu config as a baseline
-          cp /boot/config-$(uname -r) .config
+          # Copy YOUR uploaded Zorin OS config instead of the runner's cloud config
+          cp $GITHUB_WORKSPACE/zorin.config .config
           make olddefconfig
           
           # Disable security certificates to prevent build errors
